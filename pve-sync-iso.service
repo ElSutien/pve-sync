@@ -1,0 +1,13 @@
+[Unit]
+Description=PVE Iso image sync service
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=15
+User=root
+ExecStart=/bin/bash /sbin/pve-sync-iso
+
+[Install]
+WantedBy=multi-user.target

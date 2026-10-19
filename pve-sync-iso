@@ -1,0 +1,113 @@
+#!/bin/bash
+
+VERSION=1.0
+RELEASE_DATE=19/10/2026
+AUTHOR=ElSutien
+
+# FUNCTION compare two arrays between them
+# Parameters:
+#     - 1: name of the first variable Array to compare
+#     - 2: name of the second variable Array to compare with
+# Returns 0: match, 1: mismatch
+cmpArray () {
+  local x
+  [ "$(eval "echo \${!${1}[@]}")" == "$(eval "echo \${!${2}[@]}")" ] || return 1
+  for x in $(eval "echo \${!${1}[@]}"); do
+    [ "$(eval "echo \${${1}[$x]}")" == "$(eval "echo \${${2}[$x]}")" ] || return 1
+  done
+  return 0
+}
+
+# FUNCTION copy an array from a variable to another
+# Parameters:
+#     - 1: name of the variable Array to copy
+#     - 2: name of the variable Array to write
+# Returns byRef: an Array variable
+copyArray () {
+  eval "${2}=()"  #Init Array
+  
+  for i in $(eval "echo \${!${1}[@]}"); do
+    eval "${2}+=(\"$(eval "echo \"\${${1}[$i]}\"")\")"
+  done
+}
+
+# FUNCTION print a list from the Array elements
+# Parameters:
+#     - 1: name of the variable Array to print
+# StdOut: list of each element of the array per line
+array2str () {
+  ( eval "IFS=\$'\\n'; printf \"%s\\n\" \"\${${1}[*]}\"" )
+}
+
+# FUNCTION print a list of other nodes in the cluster (avoid local one)
+# StdOut: list of node names
+getNodes () {
+  pvecm nodes | tail -n+5 | grep -v "(local)" | awk '{print $3}'
+}
+
+# Disable date command for non interactive terminal
+if [ ! -t 1 ]; then
+  date () { :; }
+fi
+
+printHelp () {
+  echo "pve-sync-iso v$VERSION ($RELEASE_DATE) By $AUTHOR"
+  echo "Worker for synchronizing ISO resources between pve nodes."
+}
+
+
+
+###########################
+######     MAIN     #######
+
+
+ISOPATH="/var/lib/vz/template/iso"
+REFRESHTIME=10
+
+#flistA=($(ls -1 $ISOPATH))
+flistA=()
+
+if [ "$1" == "--help" ]; then
+  printHelp
+  exit 0
+fi
+
+
+while /bin/true; do
+  tmpA=($(ls -1 $ISOPATH))  # Get actual files
+  
+  if ! cmpArray flistA tmpA ; then  # If list differ (files modified)
+    echo "$(date "+[%d/%m/%Y %H:%M:%S]") File list mismatch"
+  
+    #Find missing files
+    erasedList=$(array2str flistA | grep -F -x -v -f <(array2str tmpA))
+    
+    if [ -n "$erasedList" ]; then
+      #Delete erased files from other nodes
+      for x in $erasedList; do
+        for n in $(getNodes); do
+          ssh $n "rm -f ${ISOPATH}/${x}"
+          echo "$(date "+[%d/%m/%Y %H:%M:%S]") Erased file '$x' from '$n'"
+        done
+      done
+    fi
+    
+    # Find new files
+    newerList=$(array2str tmpA | grep -F -x -v -f <(array2str flistA))
+    
+    if [ -n "$newerList" ]; then
+      #Distribute new files to other nodes
+      for x in $newerList; do
+        for n in $(getNodes); do
+          rsync -caz ${ISOPATH}/${x} ${n}:${ISOPATH}/.
+          echo "$(date "+[%d/%m/%Y %H:%M:%S]") Distributed file '$x' to '$n'"
+        done
+      done
+    fi
+    
+    copyArray tmpA flistA  # Save new array of files
+    echo "$(date "+[%d/%m/%Y %H:%M:%S]") Files syncronized"
+  fi
+  
+  sleep $REFRESHTIME  # Pause check
+done
