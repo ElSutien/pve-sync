@@ -21,10 +21,6 @@ Execute following commands:
 $ install -u root -g root -m776 pve-sync-iso.service /lib/systemd/system/
 $ install -u root -g root -m776 pve-sync-iso /sbin/
 $ systemctl daemon-reload
-```
-
-Finally, run on every node:
-```
 $ systemctl enable --now pve-sync-iso
 ```
 
@@ -36,17 +32,14 @@ $ systemctl enable --now pve-sync-iso
 - Move "pve-sync-lxc" to directory "/sbin/"
 - Reload Systemd services
 
-Execute following commands:
+Execute following commands on every node:
 ```
 $ install -u root -g root -m776 pve-sync-lxc.service /lib/systemd/system/
 $ install -u root -g root -m776 pve-sync-lxc /sbin/
 $ systemctl daemon-reload
-```
-
-Finally, run on every node:
-```
 $ systemctl enable --now pve-sync-lxc
 ```
+
 
 ## Usage
 
