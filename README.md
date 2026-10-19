@@ -53,3 +53,9 @@ $ systemctl enable --now pve-sync-lxc
 When service is running, it detect automatically if a new resource was uploaded on the node, then it spread the new resource to the other nodes of the cluster using an ssh connection.
 
 If a resource is deleted from one node, it is also erased from the other nodes of the cluster.
+
+## Compatibility
+
+This services was tested successfully on ProxMox VE 9.
+
+Previous versions of ProxMox was not tested, however, if resources are stored in the same path and pve cluster commands (pvecm nodes) behaves equal, it can work. Test it with caution.
